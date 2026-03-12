@@ -131,7 +131,6 @@ root = TkinterDnD.Tk()
 root.title("PyFiles")
 root.geometry("600x350")
 root.resizable(False, False)
-root.iconbitmap("C:\Projects\PyFiles\pyfiles2.ico")
 style = ttk.Style()
 style.theme_use("vista")
 
@@ -200,6 +199,7 @@ progress.pack(fill=tk.X, padx=5, pady=2)
 
 status_label = tk.Label(bottom_frame, text="Ready", bd=1, relief=tk.SUNKEN, anchor="w")
 status_label.pack(fill=tk.X)
+
 
 
 root.mainloop()
