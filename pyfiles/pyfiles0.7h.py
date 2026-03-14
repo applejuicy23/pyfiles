@@ -427,7 +427,7 @@ def show_about():
 
     messagebox.showinfo(
         "About PyFiles",
-        "PyFiles v0.7\n\nSimple GUI tool for file operations\nPython 3.14 + tkinter\nv0.7"
+        "PyFiles v0.7h\n\nSimple GUI tool for file operations\nPython 3.14 + tkinter\nv0.7h"
         " - UNDER CONSTRUCTION\n"
         "id/applejuicy23"
     )
@@ -437,7 +437,7 @@ def show_whats_new():
 
     messagebox.showinfo(
         "What's New?",
-        "PyFiles v0.7\n\n"
+        "PyFiles v0.7h\n\n"
         ">> UI improvements\n"
         ">> Mode choosing\n"
         ">> Create and Delete prototype\n"
@@ -557,7 +557,7 @@ def set_success(msg):
 #better to sort it but too much shit, later...
 #window
 root = TkinterDnD.Tk()
-root.title("PyFiles v0.7")
+root.title("PyFiles v0.7h")
 root.geometry("600x400")
 root.resizable(False, False)
 root.iconbitmap(resource_path("pyfiles2.ico"))
