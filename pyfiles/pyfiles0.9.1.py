@@ -546,8 +546,8 @@ def show_about():
 
     messagebox.showinfo(
         "About PyFiles",
-        "PyFiles v0.9\n\nNot-a-Simple GUI tool for file operations\nPython 3.14 + tkinter\nv0.9"
-        " - RELEASE CANDIDATE 1\n"
+        "PyFiles v0.9.1\n\nNot-a-Simple GUI tool for file operations\nPython 3.14 + tkinter\nv0.9.1"
+        " - RELEASE CANDIDATE\n"
         "id/applejuicy23"
     )
 
@@ -556,14 +556,8 @@ def show_whats_new():
 
     messagebox.showinfo(
         "What's New?",
-        "PyFiles v0.9\n\n"
-        ">> New-UI updated\n"
-        ">> Move/Copy UI updated\n"
-        ">> Status bar logic update\n"
-        ">> Error logic update\n"
-        ">> Choosing mode logic update\n"
-        ">> Fixed many bugs\n"
-        ">> New UI colors available\n"
+        "PyFiles v0.9.1\n\n"
+        ">> theme Light, Default and partly Dark fixed\n"
     )
 
 def apply_prefix(pattern, name, num, ext):
@@ -811,7 +805,7 @@ def set_success(msg):
 #better to sort it but too much shit, later...
 #window
 root = TkinterDnD.Tk()
-root.title("PyFiles v0.9")
+root.title("PyFiles v0.9.1")
 root.geometry("700x600")
 root.resizable(False, False)
 root.iconbitmap(resource_path("pyfiles2.ico"))
@@ -1104,7 +1098,7 @@ icon_label.pack(side="left")
 
 title = tk.Label(
     title_frame,
-    text=" PyFiles v0.9",
+    text=" PyFiles v0.9.1",
     font=("Segoe UI", 10)
 )
 title.pack(side="left")
