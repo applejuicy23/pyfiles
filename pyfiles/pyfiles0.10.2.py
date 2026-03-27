@@ -575,7 +575,7 @@ def insert_folder(tree, parent, folder_path, depth=1, max_depth=float("inf")):
             for entry in entries:
                 print("ENTRY:", entry.name)
 
-                full_path = entry.path  # 🔥 ВОТ ЭТО НЕ ХВАТАЛО
+                full_path = entry.path  
 
                 if entry.is_dir():
                     insert_folder(tree, node, full_path, depth + 1, max_depth)
@@ -620,7 +620,7 @@ def choose_source_folder():
     if not folder:
         return
 
-    # 🔥 не удаляем старые папки
+    
     insert_folder(files_tree, "", folder)
 
     files_tree.update_idletasks()
@@ -832,14 +832,14 @@ def show_file_menu(event):
     tree = files_tree
     item = tree.identify_row(event.y)
 
-    # 💣 сброс drag
+  
     drag_select_start = None
     is_dragging = False
 
     if not item:
         return
 
-    # 💎 если клик вне выделения → выбрать только этот
+    
     if item not in tree.selection():
         tree.selection_set(item)
 
@@ -1086,7 +1086,7 @@ def show_whats_new():
         ">> Delete mode fixed \n"
         ">> Drag function is updated \n"
         ">> Program under construction!!!!\n"
-        
+
     )
 
     text.config(state="disabled")
@@ -1207,7 +1207,7 @@ def delete_files():
             filename = os.path.basename(path)
 
             if safe_mode.get():
-                # 🗑️ в корзину (твой bin)
+               
                 meta = load_meta()
                 file_id = str(uuid.uuid4())
                 dst = os.path.join(BIN_DIR, file_id)
@@ -1224,7 +1224,7 @@ def delete_files():
                 msg = f"[BIN] {filename} moved to bin"
 
             else:
-                # 💀 полное удаление
+             
                 if os.path.isfile(path):
                     os.remove(path)
                 elif os.path.isdir(path):
@@ -1244,15 +1244,15 @@ def delete_files():
         animate_progress(i)
         root.update()
 
-    # 🔥 СОХРАНЕНИЕ ЛОГА
+
     save_log(logs, errors)
 
-    # 🔥 СТАТУС
+
     set_operation_status("Delete complete", logs, errors)
 
     root.after(5000, reset_progress)
 
-    # 🔄 обновление UI
+
     root.after(50, search_files)
     root.after(50, load_bin)
 def load_meta():
@@ -1661,7 +1661,7 @@ def search_files(event=None):
             max_depth = 1
 
         base_depth = folder.count(os.sep)
-        folders_map = {folder: ""}  # корень
+        folders_map = {folder: ""}
 
         for root_dir, dirs, files in os.walk(folder):
             current_depth = root_dir.count(os.sep) - base_depth
@@ -1669,7 +1669,7 @@ def search_files(event=None):
             if current_depth >= max_depth:
                 dirs[:] = []
 
-            # 🔥 строим дерево папок
+       
             if root_dir not in folders_map:
                 rel_path = os.path.relpath(root_dir, folder)
                 parts = rel_path.split(os.sep)
@@ -1693,7 +1693,7 @@ def search_files(event=None):
 
             parent_id = folders_map.get(root_dir, "")
 
-            # 🔥 файлы
+          
             for file in sorted(files, key=natural_sort_key):
 
                 if keyword and keyword.lower() not in file.lower():
@@ -1705,7 +1705,7 @@ def search_files(event=None):
 
                 full_path = os.path.join(root_dir, file)
 
-                # 💥 ИКОНКА
+           
                 icon = get_file_icon(full_path)
 
                 delete_tree.insert(
