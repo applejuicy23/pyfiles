@@ -131,11 +131,11 @@ def count_inside_folder(folder):
 def get_preview_icon(filename):
     ext = os.path.splitext(filename)[1].lower()
 
-    # 💥 НЕТ РАСШИРЕНИЯ → ❓
+
     if not ext:
         return unknown_icon
 
-    # 💥 ЕСТЬ РАСШИРЕНИЕ → стандартная логика (через твою функцию)
+
     return get_icon_by_extension(ext)
 def choose_files():
     files = filedialog.askopenfilenames()
@@ -483,10 +483,10 @@ def mark_error_in_tree(tree, path):
     for item in tree.get_children():
         res = search(item)
         if res:
-            # 💥 красим сам файл
+    
             tree.item(res, tags=("error",))
 
-            # 💥 красим родителя (папку)
+  
             parent = tree.parent(res)
             if parent:
                 tree.item(parent, tags=("error",))
@@ -513,7 +513,7 @@ def remove_selected():
         all_paths = collect_paths(item)
 
         for p in all_paths:
-            excluded_paths.add(norm(p))  # 💥 теперь ВСЕ вложенные
+            excluded_paths.add(norm(p))
 
         files_tree.delete(item)
 def clean_tree(tree, error_paths):
@@ -527,7 +527,7 @@ def clean_tree(tree, error_paths):
             if path in error_paths:
                 keep = True
 
-        # проверяем детей
+
         for child in tree.get_children(item):
             if process(child):
                 keep = True
@@ -568,7 +568,7 @@ def move_files():
     destination = get_destination()
     paths = get_effective_selection(files_tree)
 
-    # 💥 ВОТ СЮДА ПЕРЕНЕСТИ
+
     errors = []
     error_paths = set()
     logs = []
@@ -607,7 +607,7 @@ def move_files():
                 name = os.path.basename(path)
                 target = os.path.join(destination, name)
 
-                # 💥 конфликт имён
+          
                 if os.path.exists(target):
                     choice = mb.askyesnocancel(
                         "File exists",
@@ -635,7 +635,7 @@ def move_files():
                                 break
                             counter += 1
 
-                # 💥 ФАЙЛ
+          
                 if os.path.isfile(path):
                     files_count += 1
 
@@ -644,17 +644,17 @@ def move_files():
                     else:
                         shutil.move(path, target)
 
-                # 💥 ПАПКА
+             
                 elif os.path.isdir(path):
                     root_target = os.path.join(destination, os.path.basename(path))
                     os.makedirs(root_target, exist_ok=True)
 
                     for root_dir, dirs, files in os.walk(path):
-                        # файлы
+                        
                         for fname in files:
                             full = os.path.join(root_dir, fname)
 
-                            # 💥 ДОБАВЛЕНА ПРОВЕРКА НА КЭШ
+                           
                             if is_excluded(full):
                                 move_to_cache(full, os.path.dirname(full))
                                 continue
@@ -677,7 +677,7 @@ def move_files():
                             shutil.move(full, dest_file)
                             files_count += 1
 
-                    # удаляем пустую папку
+              
                     if not any(norm(p).startswith(norm(path)) for p in error_paths):
                         shutil.rmtree(path, ignore_errors=True)
                         folders_count += 1
@@ -686,7 +686,7 @@ def move_files():
                 logs.append(msg)
                 log_to_console(msg)
 
-            # 💥 ЛОВИМ ОШИБКУ ПРАВ ДОСТУПА (UAC)
+
             except PermissionError:
                 err = f"File {os.path.basename(path)} >> ERROR: Access Denied (Нужны права Администратора)"
                 errors.append(err)
@@ -695,7 +695,7 @@ def move_files():
                 mark_error_in_tree(files_tree, path)
                 error_paths.add(norm(path))
 
-            # 💥 ЛОВИМ ВСЕ ОСТАЛЬНЫЕ ОШИБКИ
+
             except Exception as e:
                 err = f"File {os.path.basename(path)} >> ERROR: {str(e)}"
                 errors.append(err)
@@ -832,7 +832,7 @@ def duplicate_files():
                 logs.append(msg)
                 log_to_console(msg)
 
-            # 💥 ЛОВИМ ОШИБКУ ПРАВ ДОСТУПА (UAC)
+
             except PermissionError:
                 filename = os.path.basename(f) if 'f' in locals() else "Unknown Target"
                 err = f"File {filename} >> ERROR: Access Denied (Нужны права Администратора)"
@@ -843,7 +843,7 @@ def duplicate_files():
                 if 'f' in locals():
                     mark_error_in_tree(files_tree, f)
 
-            # 💥 ЛОВИМ ВСЕ ОСТАЛЬНЫЕ ОШИБКИ (с нашей прошлой защитой от краша)
+
             except Exception as e:
                 filename = os.path.basename(f) if 'f' in locals() else "Unknown Target"
                 err = f"File {filename} >> ERROR: {str(e)}"
@@ -873,7 +873,7 @@ def duplicate_files():
         logs.append(err)
         log_to_console(err)
 
-        mark_error_in_tree(files_tree, f)  # 💥 ВОТ ЭТО
+        mark_error_in_tree(files_tree, f) 
 def set_mode(mode):
     for frame in (center_frame, create_frame, delete_frame):
         frame.pack_forget()
@@ -882,7 +882,7 @@ def set_mode(mode):
 
     current_mode = mode
 
-    # 💥 Возвращаем обычный текст без галочки
+
     move_btn.config(text="  MOVE")
     duplicate_btn.config(text="  COPY")
     create_btn.config(text="  CREATE")
@@ -898,7 +898,6 @@ def set_mode(mode):
             fg=THEMES[current_theme]["fg"]
         )
 
-    # 💥 Добавляем галочку к выбранной кнопке
     if mode == "MOVE":
         move_btn.config(relief="flat", bg=THEMES[current_theme]["accent"], fg=THEMES[current_theme]["fg"], text=" ✔ MOVE")
         active_button = move_btn
@@ -948,13 +947,13 @@ def execute_action():
 def drop_files(event):
     files = root.tk.splitlist(event.data)
 
-    added = []  # 💥 реально добавленные
-    skipped = []  # 💥 дубликаты
+    added = [] 
+    skipped = []  
 
     for f in files:
         f = norm(f)
 
-        # ❌ если уже есть — пропускаем
+
         if f in added_paths:
             skipped.append(f)
             continue
@@ -976,7 +975,7 @@ def drop_files(event):
 
         added.append(f)
     adjust_tree_column_full(files_tree)
-    # 💥 сообщения
+
     if added:
         names = [os.path.basename(f) for f in added]
         msg = format_items(len(added), 0, names if len(added)==1 else None)
@@ -1161,23 +1160,23 @@ def auto_format_date(event):
 
     fmt = date_format_var.get()
 
-    # 💥 только цифры
+
     if not raw.isdigit():
         return
 
     result = None
 
-    # 🇷🇺 DMY → 21012000
+
     if fmt == "DMY" and len(raw) == 8:
         d, m, y = raw[:2], raw[2:4], raw[4:]
         result = f"{d}.{m}.{y}"
 
-    # 🇺🇸 MDY → 01212000
+
     elif fmt == "MDY" and len(raw) == 8:
         m, d, y = raw[:2], raw[2:4], raw[4:]
         result = f"{m}/{d}/{y}"
 
-    # 🌍 YMD → 20000121
+
     elif fmt == "YMD" and len(raw) == 8:
         y, m, d = raw[:4], raw[4:6], raw[6:]
         result = f"{y}-{m}-{d}"
@@ -1212,7 +1211,6 @@ def choose_source_folder():
 
     folder = norm(folder)
 
-    # 💥 проверка на дубликат
     if folder in added_paths:
         show_status("Folder already added")
         return
@@ -1451,7 +1449,7 @@ class TreeTooltip:
             x = self.tree.winfo_pointerx()
             y = self.tree.winfo_pointery()
 
-            # переводим в координаты tree
+
             rel_x = x - self.tree.winfo_rootx()
             rel_y = y - self.tree.winfo_rooty()
 
@@ -1651,12 +1649,12 @@ def delete_destination_key(event):
 def select_all_items(event):
     tree = event.widget
     
-    # 1. Защита от "двойного выбора" — чистим остальные деревья
+
     for t in (files_tree, dest_tree, delete_tree, delete_bin_tree):
         if t != tree and t.winfo_exists():
             t.selection_remove(t.selection())
             
-    # 2. Рекурсивный поиск, чтобы выделить ВСЁ (даже файлы внутри открытых папок)
+
     def get_all(item=""):
         children = tree.get_children(item)
         result = list(children)
@@ -1666,7 +1664,7 @@ def select_all_items(event):
         
     tree.selection_set(get_all())
     
-    # 3. Блокируем дальнейшее распространение события
+
     return "break"
 def on_safe_toggle():
     if not safe_mode.get():
@@ -1732,10 +1730,10 @@ def show_about():
 
     about_window.protocol("WM_DELETE_WINDOW", on_close)
 
-    # 💥 ИКОНКА ОКНА
+
     about_window.iconbitmap(resource_path("pyfiles2.ico"))
 
-    # 💥 ЛОГО + TITLE
+
     logo_img = tk.PhotoImage(file=resource_path("pyfilespng.png"))
     logo_img = logo_img.subsample(16, 16)
     about_window.logo_img = logo_img
@@ -1751,7 +1749,7 @@ def show_about():
     )
     title_label.pack(pady=10)
 
-    # 💥 ТЕКСТ
+
     info_label = tk.Label(
         about_window,
         text=(
@@ -1771,7 +1769,7 @@ def show_about():
     )
     info_label.pack(pady=5)
 
-    # 💥 STEAM КНОПКА
+
     steam_frame = tk.Frame(about_window, bg="#1e1e1e")
     steam_frame.pack(pady=15)
 
@@ -1795,7 +1793,7 @@ def show_about():
     )
     steam_btn.pack()
 
-    # 💥 HOVER ЭФФЕКТ
+
     def on_enter(e):
         steam_btn.config(bg="#3a3a3a")
 
@@ -1819,7 +1817,7 @@ def show_whats_new():
     whatsnew_window.config(bg="#1e1e1e")
     logo_img = tk.PhotoImage(file=resource_path("pyfilespng.png"))
     logo_img = logo_img.subsample(16, 16)
-    whatsnew_window.logo_img = logo_img  # чтобы не исчезло
+    whatsnew_window.logo_img = logo_img  
     def on_close():
         global whatsnew_window
         whatsnew_window.destroy()
@@ -2070,7 +2068,7 @@ def delete_files(all=False):
     else:
         action = "Deleted"
 
-    # 💥 одиночный случай
+
     if len(names) == 1:
         if files == 1:
             msg = f"File {names[0]} {action}"
@@ -2287,7 +2285,7 @@ def adjust_tree_column_full(tree):
         values = tree.item(item, "values")
         text = tree.item(item, "text")
 
-        # 💥 если есть полный путь — используем его
+
         if values:
             display_text = values[0]
         else:
@@ -2348,7 +2346,7 @@ def show_create_preview():
             
 def get_create_preview_icon(ext):
     if not ext:
-        return unknown_icon  # 💥 ВОТ ЭТО ГЛАВНОЕ
+        return unknown_icon  
 
     if not ext.startswith("."):
         ext = "." + ext
@@ -2561,7 +2559,7 @@ def update_date_placeholder():
     else:
         ph = "YYYY-MM-DD"
 
-    # 💥 если пользователь уже печатает — НЕ ТРОГАЕМ
+
     if not getattr(date_entry, "is_placeholder", False):
         return
 
@@ -2756,11 +2754,11 @@ def add_placeholder(entry, placeholder):
         if not entry.get():
             show_placeholder()
 
-    # 💥 ЧИСТИМ старые бинды
+  
     entry.unbind("<FocusIn>")
     entry.unbind("<FocusOut>")
 
-    # 💥 ТОЛЬКО focus, НИКАКИХ Key
+
     entry.bind("<FocusIn>", on_focus_in)
     entry.bind("<FocusOut>", on_focus_out)
 
@@ -2827,7 +2825,7 @@ def update_preview():
 def get_entry_value(entry):
     val = entry.get().strip()
 
-    # 💥 если это placeholder — игнорим
+
     if getattr(entry, "is_placeholder", False):
         return ""
 
@@ -3158,7 +3156,7 @@ def apply_theme(name):
     about_tab.config(
     bg=t["panel"],
     fg=t["fg"],
-    activebackground=t["panel"]  # 💥 ВОТ ОНО
+    activebackground=t["panel"] 
 )
     whatsnew_tab.config(
     bg=t["panel"],
@@ -3172,7 +3170,7 @@ def apply_theme(name):
         about_tab.config(
     bg=t["panel"],
     fg=t["fg"],
-    activebackground=t["panel"]  # 💥 ВОТ ОНО
+    activebackground=t["panel"]
 )
         whatsnew_tab.config(
     bg=t["panel"],
@@ -3332,7 +3330,7 @@ def apply_theme(name):
         about_tab.config(
     bg=t["panel"],
     fg=t["fg"],
-    activebackground=t["panel"]  # 💥 ВОТ ОНО
+    activebackground=t["panel"] 
 )
         whatsnew_tab.config(
     bg=t["panel"],
@@ -3514,12 +3512,12 @@ center_frame.grid_rowconfigure(1, weight=1)
 
 
 btn_style = {
-    "width": 130,    # Ширина в пикселях (эквивалент старым 14 символам)
-    "height": 70,    # Высота в пикселях (эквивалент старым 3 строкам)
+    "width": 130,   
+    "height": 70,   
     "font": ("Segoe UI", 11),
     "bd": 0,
     "anchor": "w",
-    "padx": 15       # Слегка отодвигаем иконку от левого края, чтобы было красиво
+    "padx": 15     
 }
 
 move_btn = tk.Button(left_panel, text="  MOVE", image=sidebar_move_icon, compound="left", command=lambda: set_mode("MOVE"), **btn_style)
