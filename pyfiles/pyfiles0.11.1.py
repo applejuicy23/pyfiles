@@ -686,13 +686,24 @@ def move_files():
                 logs.append(msg)
                 log_to_console(msg)
 
+            # 💥 ЛОВИМ ОШИБКУ ПРАВ ДОСТУПА (UAC)
+            except PermissionError:
+                err = f"File {os.path.basename(path)} >> ERROR: Access Denied (Нужны права Администратора)"
+                errors.append(err)
+                logs.append(err)
+                log_to_console(err)
+                mark_error_in_tree(files_tree, path)
+                error_paths.add(norm(path))
+
+            # 💥 ЛОВИМ ВСЕ ОСТАЛЬНЫЕ ОШИБКИ
             except Exception as e:
                 err = f"File {os.path.basename(path)} >> ERROR: {str(e)}"
                 errors.append(err)
                 logs.append(err)
                 log_to_console(err)
-                mark_error_in_tree(files_tree, path)  # 💥 ВОТ ЭТО
+                mark_error_in_tree(files_tree, path)
                 error_paths.add(norm(path))
+
             animate_progress(i)
             root.update()
 
@@ -821,16 +832,27 @@ def duplicate_files():
                 logs.append(msg)
                 log_to_console(msg)
 
+            # 💥 ЛОВИМ ОШИБКУ ПРАВ ДОСТУПА (UAC)
+            except PermissionError:
+                filename = os.path.basename(f) if 'f' in locals() else "Unknown Target"
+                err = f"File {filename} >> ERROR: Access Denied (Нужны права Администратора)"
+                errors.append(err)
+                logs.append(err)
+                log_to_console(err)
+                
+                if 'f' in locals():
+                    mark_error_in_tree(files_tree, f)
+
+            # 💥 ЛОВИМ ВСЕ ОСТАЛЬНЫЕ ОШИБКИ (с нашей прошлой защитой от краша)
             except Exception as e:
-                    # Безопасно получаем имя файла, если оно есть
-                    filename = os.path.basename(f) if 'f' in locals() else "Unknown Target"
-                    err = f"File {filename} >> ERROR: {str(e)}"
-                    errors.append(err)
-                    logs.append(err)
-                    log_to_console(err)
-                    
-                    if 'f' in locals():
-                        mark_error_in_tree(files_tree, f)
+                filename = os.path.basename(f) if 'f' in locals() else "Unknown Target"
+                err = f"File {filename} >> ERROR: {str(e)}"
+                errors.append(err)
+                logs.append(err)
+                log_to_console(err)
+                
+                if 'f' in locals():
+                    mark_error_in_tree(files_tree, f)
 
             animate_progress(i)
             root.update()
@@ -1626,14 +1648,25 @@ def delete_file_key(event=None):
 def delete_destination_key(event):
     clear_destination()
 
-
-def select_all_files(event=None):
-
-    files_tree.selection_set(files_tree.get_children())
-
-    return "break"
-def select_all(event):
-    event.widget.selection_set(event.widget.get_children())
+def select_all_items(event):
+    tree = event.widget
+    
+    # 1. Защита от "двойного выбора" — чистим остальные деревья
+    for t in (files_tree, dest_tree, delete_tree, delete_bin_tree):
+        if t != tree and t.winfo_exists():
+            t.selection_remove(t.selection())
+            
+    # 2. Рекурсивный поиск, чтобы выделить ВСЁ (даже файлы внутри открытых папок)
+    def get_all(item=""):
+        children = tree.get_children(item)
+        result = list(children)
+        for child in children:
+            result.extend(get_all(child))
+        return result
+        
+    tree.selection_set(get_all())
+    
+    # 3. Блокируем дальнейшее распространение события
     return "break"
 def on_safe_toggle():
     if not safe_mode.get():
@@ -1821,6 +1854,7 @@ def show_whats_new():
         ">> Sidebar UI is updated: Move, Copy, Create, and Delete buttons now have beautiful icons along with dynamic checkmarks!\n"
         ">> Cache function inside folders is completely fixed: removing specific files from a folder in the list now correctly sends them to the cache bin instead of moving them to the destination\n"
         ">> Drag & Drop function is fixed (UAC restriction logic adjusted)\n"
+        ">> Graceful UAC error handling: moving or copying protected system files without Administrator privileges no longer crashes the app; instead, it safely skips them and marks them in red\n"
         "\n"
         "OTHER UPDATES & FIXES: \n"
         "\n"
@@ -2842,7 +2876,7 @@ def set_success(msg):
 #window
 root = TkinterDnD.Tk()
 root.title("PyFiles v0.11.1")
-root.geometry("1200x800")
+root.geometry("1200x800") 
 
 IMAGE_EXTENSIONS = {
     ".png", ".jpg", ".jpeg", ".webp", ".avif",
@@ -2851,10 +2885,10 @@ IMAGE_EXTENSIONS = {
 image_icon = ImageTk.PhotoImage(Image.open(resource_path("photoico.png")).resize((16, 16)))
 unknown_icon = ImageTk.PhotoImage(Image.open(resource_path("unknown.png")).resize((16, 16)))
 
-sidebar_move_icon = ImageTk.PhotoImage(Image.open(resource_path("move.png")).resize((20, 20)))
-sidebar_copy_icon = ImageTk.PhotoImage(Image.open(resource_path("copy.png")).resize((20, 20)))
-sidebar_create_icon = ImageTk.PhotoImage(Image.open(resource_path("create.png")).resize((20, 20)))
-sidebar_delete_icon = ImageTk.PhotoImage(Image.open(resource_path("delete.png")).resize((20, 20)))
+sidebar_move_icon = ImageTk.PhotoImage(Image.open(resource_path("move.png")).resize((20, 26), Image.LANCZOS))
+sidebar_copy_icon = ImageTk.PhotoImage(Image.open(resource_path("copy.png")).resize((20, 26), Image.LANCZOS))
+sidebar_create_icon = ImageTk.PhotoImage(Image.open(resource_path("create.png")).resize((20, 26), Image.LANCZOS))
+sidebar_delete_icon = ImageTk.PhotoImage(Image.open(resource_path("delete.png")).resize((20, 26), Image.LANCZOS))
 
 root.iconbitmap(resource_path("pyfiles2.ico"))
 style = ttk.Style()
@@ -3480,8 +3514,8 @@ center_frame.grid_rowconfigure(1, weight=1)
 
 
 btn_style = {
-    "width": 150,    # Ширина в пикселях (эквивалент старым 14 символам)
-    "height": 55,    # Высота в пикселях (эквивалент старым 3 строкам)
+    "width": 130,    # Ширина в пикселях (эквивалент старым 14 символам)
+    "height": 70,    # Высота в пикселях (эквивалент старым 3 строкам)
     "font": ("Segoe UI", 11),
     "bd": 0,
     "anchor": "w",
@@ -3622,7 +3656,6 @@ files_tree.bind("<Double-1>", open_selected_file)
 files_tree.bind("<Motion>", highlight_file)
 files_tree.bind("<Leave>", clear_file_highlight)
 files_tree.bind("<Button-3>", show_file_menu)
-files_tree.bind("<Control-a>", select_all_files)
 files_tree.bind("<Button-1>", start_drag_select)
 files_tree.bind("<B1-Motion>", drag_select)
 files_tree.bind("<ButtonRelease-1>", stop_drag_select)
@@ -3631,6 +3664,8 @@ files_tree.tag_configure("error", foreground="red")
 files_tree.drop_target_register(DND_FILES)
 files_tree.dnd_bind('<<Drop>>', drop_files)
 files_tree.focus_set()
+
+files_tree.bind("<Delete>", lambda e: (delete_selected_file(), "break")[1])
 
 files_buttons_frame = tk.Frame(center_frame)
 files_buttons_frame.grid_columnconfigure(0, weight=1)
@@ -4092,10 +4127,11 @@ delete_tree.bind("<Button-3>", show_delete_menu)
 delete_tree.bind("<Button-1>", start_drag_select)
 delete_tree.bind("<B1-Motion>", drag_select)
 delete_tree.bind("<ButtonRelease-1>", stop_drag_select)
-delete_tree.bind("<Control-a>", select_all)
-delete_tree.bind("<Control-A>", select_all)
+
 delete_tree.bind("<Escape>", clear_delete_selection)
 delete_tree.bind("<Control-z>", undo_delete)
+
+delete_tree.bind("<Delete>", lambda e: (delete_files(), "break")[1])
 
 delete_scroll_y = ttk.Scrollbar(delete_container, orient="vertical", command=delete_tree.yview)
 delete_scroll_x = ttk.Scrollbar(delete_container, orient="horizontal", command=delete_tree.xview)
@@ -4150,7 +4186,7 @@ delete_bin_tree.bind("<Button-1>", start_drag_select)
 delete_bin_tree.bind("<B1-Motion>", drag_select)
 delete_bin_tree.bind("<ButtonRelease-1>", stop_drag_select)
 delete_bin_tree.bind("<Button-3>", show_bin_menu)
-delete_bin_tree.bind("<Delete>", lambda e: delete_from_bin())
+delete_bin_tree.bind("<Delete>", lambda e: (delete_from_bin(), "break")[1])
 current_delete_tab = tk.StringVar(value="list")
 switch_delete_tab("list")
 
@@ -4202,6 +4238,8 @@ dest_tree.bind("<MouseWheel>", lambda e: dest_tree.yview_scroll(int(-1*(e.delta/
 dest_tree.bind("<Motion>", dest_cursor_hover)
 dest_tree.bind("<Leave>", lambda e: dest_tree.config(cursor=""))
 dest_tree.bind("<Button-1>", lambda e: clear_all_tree_selections(e, dest_tree))
+dest_tree.bind("<Delete>", lambda e: (clear_destination(), "break")[1])
+
 # buttons
 dest_buttons_frame = tk.Frame(center_frame)
 dest_buttons_frame.grid(row=2, column=1, pady=(10,15))
