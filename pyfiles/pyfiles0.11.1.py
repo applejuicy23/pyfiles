@@ -27,6 +27,143 @@ import json
 import tkinter.messagebox as mb
 import uuid
 
+# make shared service modules importable both from legacy and package entrypoints
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+
+try:
+    from pyfiles.services.utils import (
+        format_items as _format_items,
+        resource_path as _resource_path,
+        norm_path as _norm_path,
+        count_inside_folder as _count_inside_folder,
+        natural_sort_key as _natural_sort_key,
+    )
+    from pyfiles.services.create_ops import (
+        sanitize_filename as _sanitize_filename,
+        parse_count_input as _parse_count_input,
+    )
+    from pyfiles.services.file_ops import (
+        move_items as _move_items,
+        copy_items as _copy_items,
+        scan_files as _scan_files,
+        move_to_cache as _move_to_cache,
+    )
+    from pyfiles.services.delete_ops import (
+        delete_items as _delete_items,
+        delete_from_bin as _delete_from_bin,
+        restore_items as _restore_items,
+        restore_from_recycle_bin as _restore_from_recycle_bin,
+        load_meta as _load_meta,
+        save_meta as _save_meta,
+    )
+except Exception:
+    # fallback when running legacy file directly as script
+    from services.utils import (
+        format_items as _format_items,
+        resource_path as _resource_path,
+        norm_path as _norm_path,
+        count_inside_folder as _count_inside_folder,
+        natural_sort_key as _natural_sort_key,
+    )
+    from services.create_ops import (
+        sanitize_filename as _sanitize_filename,
+        parse_count_input as _parse_count_input,
+    )
+    from services.file_ops import (
+        move_items as _move_items,
+        copy_items as _copy_items,
+        scan_files as _scan_files,
+        move_to_cache as _move_to_cache,
+    )
+    from services.delete_ops import (
+        delete_items as _delete_items,
+        delete_from_bin as _delete_from_bin,
+        restore_items as _restore_items,
+        restore_from_recycle_bin as _restore_from_recycle_bin,
+        load_meta as _load_meta,
+        save_meta as _save_meta,
+    )
+
+format_items = _format_items
+resource_path = _resource_path
+norm = _norm_path
+count_inside_folder = _count_inside_folder
+natural_sort_key = _natural_sort_key
+sanitize_filename = _sanitize_filename
+parse_count_input = _parse_count_input
+
+def clear_other_selection(event_or_tree, tree=None):
+    event = event_or_tree
+    if tree is None:
+        tree = event_or_tree
+        event = None
+
+    if event is not None and getattr(event, "state", 0) & 0x4:
+        return
+
+    if tree != files_tree:
+        files_tree.selection_remove(files_tree.selection())
+
+    if tree != dest_tree:
+        dest_tree.selection_remove(dest_tree.selection())
+
+
+def on_click_toggle(event):
+    tree = event.widget
+    item = tree.identify_row(event.y)
+
+    if not item:
+        return
+
+    selected = tree.selection()
+
+    if item in selected:
+        tree.selection_remove(item)
+    else:
+        if not (event.state & 0x4):
+            tree.selection_set(item)
+        else:
+            tree.selection_add(item)
+
+
+def _service_move_items(*args, **kwargs):
+    return _move_items(*args, **kwargs)
+
+
+def _service_copy_items(*args, **kwargs):
+    return _copy_items(*args, **kwargs)
+
+
+def _service_scan_files(*args, **kwargs):
+    return _scan_files(*args, **kwargs)
+
+
+def _service_delete_items(*args, **kwargs):
+    return _delete_items(*args, **kwargs)
+
+
+def _service_delete_from_bin(*args, **kwargs):
+    return _delete_from_bin(*args, **kwargs)
+
+
+def _service_restore_items(*args, **kwargs):
+    return _restore_items(*args, **kwargs)
+
+
+def _service_restore_from_recycle_bin(*args, **kwargs):
+    return _restore_from_recycle_bin(*args, **kwargs)
+
+
+def _service_load_meta(*args, **kwargs):
+    return _load_meta(*args, **kwargs)
+
+
+def _service_save_meta(*args, **kwargs):
+    return _save_meta(*args, **kwargs)
+
+
 #creating delete folder
 BIN_DIR = os.path.join(os.getcwd(), ".pyfiles_bin")
 META_FILE = os.path.join(BIN_DIR, "meta.json")
@@ -83,21 +220,6 @@ def show_status(msg, duration=5000, is_error=False):
     status_job = root.after(duration, lambda: set_status("Ready"))
 def show_error_status(msg):
     show_status(f"Error: {msg}", duration=15000, is_error=True)
-def format_items(files, folders, names=None, action="Added"):
-    if names and len(names) == 1:
-        name = names[0]
-        if files:
-            return f"{action} file {name}"
-        else:
-            return f"{action} folder {name}"
-
-    parts = []
-    if folders:
-        parts.append(f"{folders} folder{'s' if folders != 1 else ''}")
-    if files:
-        parts.append(f"{files} file{'s' if files != 1 else ''}")
-
-    return f"{action} {' and '.join(parts)}"
 def remove_items(paths):
     files = 0
     folders = 0
@@ -114,15 +236,6 @@ def remove_items(paths):
 
     msg = format_items(files, folders, names if len(paths)==1 else None, "Removed")
     show_status(msg)
-def count_inside_folder(folder):
-    files = 0
-    folders = 0
-
-    for root, dirs, filenames in os.walk(folder):
-        folders += len(dirs)
-        files += len(filenames)
-
-    return folders, files
 
 
 #up to release NEED TO MANAGE CODE, its hard to read and ducking my brain
@@ -165,12 +278,6 @@ def choose_files():
 
     msg = format_items(len(files), 0, names if len(files)==1 else None)
     show_status(msg)
-def resource_path(relative_path):
-    try:
-        base_path = sys._MEIPASS
-    except:
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
 
 def get_shortcut_target(path):
     try:
@@ -405,21 +512,9 @@ def get_destination():
 
     return dest_tree.item(items[0], "values")[0]
 #moving files
-def count_inside_folder(folder_path):
-    files = 0
-    folders = 0
-
-    for root_dir, dirs, filenames in os.walk(folder_path):
-        folders += len(dirs)
-        files += len(filenames)
-
-    return folders, files
 def move_to_cache(path, base_src):
-    rel_path = os.path.relpath(path, base_src)
-    target = os.path.join(CACHE_DIR, rel_path)
+    _move_to_cache(path, base_src, CACHE_DIR)
 
-    os.makedirs(os.path.dirname(target), exist_ok=True)
-    shutil.move(path, target)
 def move_to_destination(path, base_src, base_dst):
     rel_path = os.path.relpath(path, base_src)
     target = os.path.join(base_dst, rel_path)
@@ -430,21 +525,7 @@ def move_to_destination(path, base_src, base_dst):
         os.remove(target)
 
     shutil.move(path, target)
-def get_visible_paths(tree):
-    visible = set()
 
-    def collect(item):
-        values = tree.item(item, "values")
-        if values:
-            visible.add(norm(values[0]))
-
-        for child in tree.get_children(item):
-            collect(child)
-
-    for item in tree.get_children():
-        collect(item)
-
-    return visible
 def is_inside_selected(path, selected_paths):
     p = norm(path)
 
@@ -454,6 +535,7 @@ def is_inside_selected(path, selected_paths):
             return True
 
     return False
+
 def is_visible(path, visible_paths):
     p = norm(path)
 
@@ -464,7 +546,7 @@ def is_visible(path, visible_paths):
             return True
 
     return False
-excluded_paths = set()
+
 def mark_error_in_tree(tree, path):
     path = norm(path)
 
@@ -483,17 +565,14 @@ def mark_error_in_tree(tree, path):
     for item in tree.get_children():
         res = search(item)
         if res:
-    
             tree.item(res, tags=("error",))
 
-  
             parent = tree.parent(res)
             if parent:
                 tree.item(parent, tags=("error",))
 
             return
-def norm(p):
-    return os.path.abspath(os.path.normcase(os.path.normpath(p)))
+
 def remove_selected():
     selected = files_tree.selection()
 
@@ -516,6 +595,7 @@ def remove_selected():
             excluded_paths.add(norm(p))
 
         files_tree.delete(item)
+
 def clean_tree(tree, error_paths):
     def process(item):
         values = tree.item(item, "values")
@@ -526,7 +606,6 @@ def clean_tree(tree, error_paths):
             path = norm(values[0])
             if path in error_paths:
                 keep = True
-
 
         for child in tree.get_children(item):
             if process(child):
@@ -539,6 +618,7 @@ def clean_tree(tree, error_paths):
 
     for item in tree.get_children():
         process(item)
+
 def is_excluded(path):
     p = norm(path)
 
@@ -547,28 +627,12 @@ def is_excluded(path):
             return True
 
     return False
-def get_visible_paths(tree):
-    visible = set()
 
-    def walk(item):
-        values = tree.item(item, "values")
-        if values:
-            visible.add(norm(values[0]))
-
-        for child in tree.get_children(item):
-            walk(child)
-
-    for item in tree.get_children():
-        walk(item)
-
-    return visible
 def move_files():
     files_count = 0
     folders_count = 0
     destination = get_destination()
     paths = get_effective_selection(files_tree)
-
-
     errors = []
     error_paths = set()
     logs = []
@@ -578,13 +642,12 @@ def move_files():
     for p in all_tree_paths:
         if not os.path.exists(p):
             err = f"{os.path.basename(p)} >> ERROR: File not found"
-
             errors.append(err)
             logs.append(err)
             log_to_console(err)
-
             mark_error_in_tree(files_tree, p)
             error_paths.add(norm(p))
+
     if not paths:
         for item in files_tree.get_children(""):
             values = files_tree.item(item, "values")
@@ -595,125 +658,59 @@ def move_files():
         show_error("Select files and destination")
         return
 
+    def _resolve_conflict(file_name, _target):
+        choice = mb.askyesnocancel(
+            "File exists",
+            f"{file_name} already exists.\n\nYes = Replace\nNo = Create copy\nCancel = Skip"
+        )
+        if choice is None:
+            return "skip"
+        if choice:
+            return "replace"
+        return "rename"
+
     try:
+        for path in paths:
+            if os.path.isfile(path):
+                files_count += 1
+            elif os.path.isdir(path):
+                folders_count += 1
+
         progress["maximum"] = len(paths)
         progress["value"] = 0
         start_console_log("MOVING FILES", len(paths))
 
-        for i, path in enumerate(paths, start=1):
-            try:
-                if not os.path.exists(path):
-                    raise FileNotFoundError("File not found")
-                name = os.path.basename(path)
-                target = os.path.join(destination, name)
+        result = _service_move_items(
+            paths,
+            destination,
+            conflict_resolver=lambda name, target: _resolve_conflict(name, target),
+            excluded_paths=excluded_paths,
+            cache_dir=CACHE_DIR,
+        )
 
-          
-                if os.path.exists(target):
-                    choice = mb.askyesnocancel(
-                        "File exists",
-                        f"{name} already exists.\n\nYes = Replace\nNo = Create copy\nCancel = Skip"
-                    )
+        logs.extend(result.logs)
+        errors.extend(result.errors)
 
-                    if choice is None:
-                        continue
-                    elif choice:
-                        try:
-                            if os.path.isdir(target):
-                                shutil.rmtree(target)
-                            else:
-                                os.remove(target)
-                        except:
-                            pass
-                    else:
-                        base, ext = os.path.splitext(name)
-                        counter = 1
-                        while True:
-                            new_name = f"{base} ({counter}){ext}"
-                            new_target = os.path.join(destination, new_name)
-                            if not os.path.exists(new_target):
-                                target = new_target
-                                break
-                            counter += 1
+        for entry in result.items:
+            if entry.status == "error":
+                mark_error_in_tree(files_tree, entry.source)
+                if entry.source:
+                    error_paths.add(norm(entry.source))
 
-          
-                if os.path.isfile(path):
-                    files_count += 1
-
-                    if is_excluded(path):
-                        move_to_cache(path, os.path.dirname(path))
-                    else:
-                        shutil.move(path, target)
-
-             
-                elif os.path.isdir(path):
-                    root_target = os.path.join(destination, os.path.basename(path))
-                    os.makedirs(root_target, exist_ok=True)
-
-                    for root_dir, dirs, files in os.walk(path):
-                        
-                        for fname in files:
-                            full = os.path.join(root_dir, fname)
-
-                           
-                            if is_excluded(full):
-                                move_to_cache(full, os.path.dirname(full))
-                                continue
-
-                            if not os.path.exists(full):
-                                err = f"{fname} >> ERROR: File not found"
-                                errors.append(err)
-                                logs.append(err)
-                                log_to_console(err)
-
-                                mark_error_in_tree(files_tree, full)
-                                error_paths.add(norm(full))
-                                continue
-
-                            rel = os.path.relpath(full, path)
-                            dest_file = os.path.join(root_target, rel)
-
-                            os.makedirs(os.path.dirname(dest_file), exist_ok=True)
-
-                            shutil.move(full, dest_file)
-                            files_count += 1
-
-              
-                    if not any(norm(p).startswith(norm(path)) for p in error_paths):
-                        shutil.rmtree(path, ignore_errors=True)
-                        folders_count += 1
-
-                msg = f"File {name} moved ({destination})"
-                logs.append(msg)
-                log_to_console(msg)
-
-
-            except PermissionError:
-                err = f"File {os.path.basename(path)} >> ERROR: Access Denied (Нужны права Администратора)"
-                errors.append(err)
-                logs.append(err)
-                log_to_console(err)
-                mark_error_in_tree(files_tree, path)
-                error_paths.add(norm(path))
-
-
-            except Exception as e:
-                err = f"File {os.path.basename(path)} >> ERROR: {str(e)}"
-                errors.append(err)
-                logs.append(err)
-                log_to_console(err)
-                mark_error_in_tree(files_tree, path)
-                error_paths.add(norm(path))
-
+        for i in range(1, len(paths) + 1):
             animate_progress(i)
             root.update()
 
         save_log(logs, errors)
 
-        done = len(logs) - len(errors)
-        total = len(logs)
+        done = result.success
+        skipped = result.skipped
+        total = result.total
 
-        msg = f"Moved: {folders_count} folders, {files_count} files | Done: {done} | Errors: {len(errors)} | Total: {total} items"
-
+        msg = (
+            f"Moved: {folders_count} folders, {files_count} files | "
+            f"Done: {done} | Skipped: {skipped} | Errors: {len(errors)} | Total: {total} items"
+        )
         show_status(msg)
 
         root.after(5000, reset_progress)
@@ -724,7 +721,6 @@ def move_files():
     except Exception as e:
         show_error(str(e))
 
-#animation
 def animate_progress(target):
     global progress_job
 
@@ -790,244 +786,79 @@ def duplicate_files():
     if not destination_folder:
         show_error("Select destination")
         return
-    try:
-        selected = files_tree.selection()
 
-        if not selected:
-            files_to_copy = get_all_tree_items(files_tree)
-        else:
-            files_to_copy = [
-                files_tree.item(item, "values")[0]
-                for item in selected
-                if files_tree.item(item, "values")
-            ]
+    selected = get_effective_selection(files_tree)
+    if not selected:
+        files_to_copy = get_all_tree_items(files_tree)
+    else:
+        files_to_copy = selected
 
-        if not files_to_copy:
-            show_error("Nothing to copy")
-            return
-
-        progress["maximum"] = len(files_to_copy)
-        progress["value"] = 0
-
-        errors = []
-        logs = []
-
-        start_console_log("COPYING FILES", len(files_to_copy))
-
-        for i, f in enumerate(files_to_copy, start=1):
-            try:
-                if not os.path.exists(f):
-                    raise FileNotFoundError("File not found")
-                if os.path.isfile(f):
-                    shutil.copy2(f, destination_folder)
-
-                elif os.path.isdir(f):
-                    shutil.copytree(
-                        f,
-                        os.path.join(destination_folder, os.path.basename(f)),
-                        dirs_exist_ok=True
-                    )
-
-                msg = f"File {os.path.basename(f)} copied ({destination_folder})"
-                logs.append(msg)
-                log_to_console(msg)
-
-
-            except PermissionError:
-                filename = os.path.basename(f) if 'f' in locals() else "Unknown Target"
-                err = f"File {filename} >> ERROR: Access Denied (Нужны права Администратора)"
-                errors.append(err)
-                logs.append(err)
-                log_to_console(err)
-                
-                if 'f' in locals():
-                    mark_error_in_tree(files_tree, f)
-
-
-            except Exception as e:
-                filename = os.path.basename(f) if 'f' in locals() else "Unknown Target"
-                err = f"File {filename} >> ERROR: {str(e)}"
-                errors.append(err)
-                logs.append(err)
-                log_to_console(err)
-                
-                if 'f' in locals():
-                    mark_error_in_tree(files_tree, f)
-
-            animate_progress(i)
-            root.update()
-
-        save_log(logs, errors)
-        
-        done = len(logs) - len(errors)
-        total = len(logs)
-
-        msg = f"Copied: {total} items | Done: {done} | Errors: {len(errors)}"
-
-        show_status(msg)
-        root.after(5000, reset_progress)
-
-    except Exception as e:
-        err = f"File {os.path.basename(f)} >> ERROR: {str(e)}"
-        errors.append(err)
-        logs.append(err)
-        log_to_console(err)
-
-        mark_error_in_tree(files_tree, f) 
-def set_mode(mode):
-    for frame in (center_frame, create_frame, delete_frame):
-        frame.pack_forget()
-    global current_mode
-    global active_button
-
-    current_mode = mode
-
-
-    move_btn.config(text="  MOVE")
-    duplicate_btn.config(text="  COPY")
-    create_btn.config(text="  CREATE")
-    delete_btn.config(text="  DELETE")
-
-    create_frame.pack_forget()
-    delete_frame.pack_forget()
-
-    for btn in (move_btn, duplicate_btn, create_btn, delete_btn):
-        btn.config(
-            relief="flat",
-            bg=THEMES[current_theme]["panel"],
-            fg=THEMES[current_theme]["fg"]
-        )
-
-    if mode == "MOVE":
-        move_btn.config(relief="flat", bg=THEMES[current_theme]["accent"], fg=THEMES[current_theme]["fg"], text=" ✔ MOVE")
-        active_button = move_btn
-        center_frame.pack(fill="both", expand=True)
-
-    elif mode == "COPY":
-        duplicate_btn.config(relief="flat", bg=THEMES[current_theme]["accent"],  fg=THEMES[current_theme]["fg"], text=" ✔ COPY")
-        active_button = duplicate_btn
-        center_frame.pack(fill="both", expand=True)
-
-    elif mode == "CREATE":
-        create_btn.config(relief="flat", bg=THEMES[current_theme]["accent"],  fg=THEMES[current_theme]["fg"], text=" ✔ CREATE")
-        active_button = create_btn
-        create_frame.pack(fill="both", expand=True)
-
-    elif mode == "DELETE":
-        delete_btn.config(relief="flat", bg=THEMES[current_theme]["accent"],  fg=THEMES[current_theme]["fg"], text=" ✔ DELETE")
-        active_button = delete_btn
-        delete_frame.pack(fill="both", expand=True)
-
-    action_btn.config(text=mode)
-def clear_other_selection(event, tree):
-    if event.state & 0x4:
+    if not files_to_copy:
+        show_error("Nothing to copy")
         return
 
-    if tree != files_tree:
-        files_tree.selection_remove(files_tree.selection())
+    files_count = 0
+    folders_count = 0
+    for p in files_to_copy:
+        if os.path.isfile(p):
+            files_count += 1
+        elif os.path.isdir(p):
+            folders_count += 1
 
-    if tree != dest_tree:
-        dest_tree.selection_remove(dest_tree.selection())
-
-def execute_action():
-
-    if current_mode == "MOVE":
-        move_files()
-
-    elif current_mode == "COPY":
-        duplicate_files()
-
-    elif current_mode == "DELETE":
-        delete_files()
-
-    elif current_mode == "CREATE":
-        create_files()
-
-#drag&drop
-def drop_files(event):
-    files = root.tk.splitlist(event.data)
-
-    added = [] 
-    skipped = []  
-
-    for f in files:
-        f = norm(f)
-
-
-        if f in added_paths:
-            skipped.append(f)
-            continue
-
-        added_paths.add(f)
-
-        icon = get_file_icon(f)
-
-        files_tree.insert(
-            "",
-            "end",
-            text=os.path.basename(f),
-            image=icon if icon else "",
-            values=(f,)
+    def _resolve_conflict(file_name, _target):
+        choice = mb.askyesnocancel(
+            "File exists",
+            f"{file_name} already exists.\n\nYes = Replace\nNo = Create copy\nCancel = Skip"
         )
+        if choice is None:
+            return "skip"
+        if choice:
+            return "replace"
+        return "rename"
 
-        if icon:
-            icons_cache.append(icon)
+    progress["maximum"] = len(files_to_copy)
+    progress["value"] = 0
 
-        added.append(f)
-    adjust_tree_column_full(files_tree)
+    errors = []
+    logs = []
 
-    if added:
-        names = [os.path.basename(f) for f in added]
-        msg = format_items(len(added), 0, names if len(added)==1 else None)
-        show_status(msg)
+    start_console_log("COPYING FILES", len(files_to_copy))
 
-    elif skipped:
-        show_status("All items already added")
+    result = _service_copy_items(
+        files_to_copy,
+        destination_folder,
+        conflict_resolver=lambda name, target: _resolve_conflict(name, target),
+    )
+    errors.extend(result.errors)
+    logs.extend(result.logs)
 
-def open_log_console():
-    global log_text
+    for entry in result.items:
+        if entry.status == "error":
+            mark_error_in_tree(files_tree, entry.source)
+            if entry.source:
+                log_to_console(f"{entry.error}")
 
-    console = tk.Toplevel(root)
-    console.title("Console Log")
-    console.geometry("600x400")
+    for message in result.errors:
+        log_to_console(message)
+    for message in result.logs:
+        log_to_console(message)
 
-    log_text = tk.Text(console, bg="black", fg="white")
-    log_text.pack(fill="both", expand=True)
+    for i in range(1, len(files_to_copy) + 1):
+        animate_progress(i)
+        root.update()
 
-    for line in log_buffer:
-        log_text.insert("end", line + "\n")
+    save_log(logs, errors)
 
-    log_text.see("end")
+    done = result.success + result.skipped
+    total = result.total
 
-def log_to_console(message):
-    global log_buffer
+    msg = (
+        f"Copied: {folders_count + files_count} items | "
+        f"Done: {result.success} | Skipped: {result.skipped} | Errors: {len(errors)}"
+    )
 
-    print(message)
-    log_buffer.append(f"> {message}")
-
-    try:
-        if log_text and log_text.winfo_exists():
-            log_text.insert("end", message + "\n")
-            log_text.see("end")
-    except:
-        pass
-
-
-
-def restore_selected_file():
-    selected = delete_bin_tree.selection()
-    
-    for item in selected:
-        path = delete_bin_tree.item(item, "values")[0]
-        restore_file(path)
-
-        delete_bin_tree.delete(item)
-def clear_other_selection(current_tree):
-    if current_tree != files_tree:
-        files_tree.selection_remove(files_tree.selection())
-
-    if current_tree != dest_tree:
-        dest_tree.selection_remove(dest_tree.selection())
+    show_status(msg)
+    root.after(5000, reset_progress)
 
 #deleting files in list
 def delete_selected_file():
@@ -1145,6 +976,7 @@ def insert_folder(tree, parent, folder_path, depth=1, max_depth=float("inf"), vi
 
     except Exception as e:
         print("scan error:", e)
+
 def auto_format_date(event):
     entry = event.widget
 
@@ -1185,23 +1017,6 @@ def auto_format_date(event):
         entry.delete(0, tk.END)
         entry.insert(0, result)
     update_preview()
-def on_click_toggle(event):
-    tree = event.widget
-    item = tree.identify_row(event.y)
-
-    if not item:
-        return
-
-    selected = tree.selection()
-
-    if item in selected:
-        tree.selection_remove(item)
-    else:
-
-        if not (event.state & 0x4):
-            tree.selection_set(item)
-        else:
-            tree.selection_add(item)
 
 def choose_source_folder():
     folder = filedialog.askdirectory()
@@ -1350,13 +1165,6 @@ def stop_drag_select(event):
     drag_select_start = None
     is_dragging = False
 #icon fixup
-def resource_path(relative_path):
-    try:
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-
-    return os.path.join(base_path, relative_path)
 
 def adjust_tree_column(tree, name):
     font = tkfont.nametofont("TkDefaultFont")
@@ -1968,16 +1776,21 @@ def load_bin():
     meta = load_meta()
 
     for file_id, data in meta.items():
+        if not isinstance(data, dict):
+            continue
 
-        if os.path.exists(data["original_path"]):
-            icon = get_file_icon(data["original_path"])
+        name = data.get("name", file_id)
+        original_path = data.get("original_path", "")
+
+        if original_path and os.path.exists(original_path):
+            icon = get_file_icon(original_path)
         else:
-            icon = get_file_icon(data["name"])
+            icon = get_file_icon(name)
 
         delete_bin_tree.insert(
             "",
             "end",
-            text=data["name"],
+            text=name,
             values=(file_id,),
             image=icon if icon else ""
         )
@@ -1985,17 +1798,16 @@ def load_bin():
         if icon:
             bin_icons_cache.append(icon)
 
+
 def delete_files(all=False):
-    paths = []
-    for i in delete_tree.selection():
-        if not delete_tree.exists(i):
-            continue
+    paths = get_effective_selection(delete_tree)
 
-        values = delete_tree.item(i, "values")
-        if not values:
-            continue
-
-        paths.append(values[0])
+    # fallback: when nothing selected, use all tree items (legacy behavior)
+    if not paths:
+        for i in delete_tree.get_children():
+            values = delete_tree.item(i, "values")
+            if values:
+                paths.append(values[0])
 
     if not paths:
         show_error("Nothing to delete")
@@ -2007,67 +1819,49 @@ def delete_files(all=False):
     folders = 0
     names = []
 
+    for p in paths:
+        names.append(os.path.basename(p))
+        if os.path.isfile(p):
+            files += 1
+        elif os.path.isdir(p):
+            folders += 1
+
     start_console_log("DELETING FILES", len(paths))
 
     progress["maximum"] = len(paths)
     progress["value"] = 0
 
-    for i, path in enumerate(paths, start=1):
-        try:
-            path = str(Path(path).resolve())
-            filename = os.path.basename(path)
-            if os.path.isfile(path):
-                files += 1
-            elif os.path.isdir(path):
-                folders += 1
+    result = _service_delete_items(
+        paths,
+        safe_mode=safe_mode.get(),
+        bin_dir=BIN_DIR,
+        meta_path=META_FILE,
+    )
 
-            names.append(filename)
+    logs.extend(result.logs)
+    errors.extend(result.errors)
 
-            if safe_mode.get():
-               
-                meta = load_meta()
-                file_id = str(uuid.uuid4())
-                dst = os.path.join(BIN_DIR, file_id)
+    if safe_mode.get() and result.success:
+        for p in paths:
+            if norm(p) in result.error_paths:
+                continue
+            deleted_stack.append({"name": os.path.basename(p), "folder": os.path.dirname(p)})
 
-                shutil.move(path, dst)
+    for message in result.errors:
+        log_to_console(message)
 
-                meta[file_id] = {
-                    "original_path": path,
-                    "name": filename
-                }
+    for p in result.error_paths:
+        mark_error_in_tree(delete_tree, p)
 
-                save_meta(meta)
-
-                msg = f"[BIN] {filename} moved to bin"
-
-            else:
-             
-                if os.path.isfile(path):
-                    os.remove(path)
-                elif os.path.isdir(path):
-                    shutil.rmtree(path)
-
-                msg = f"[DEL] {filename} deleted"
-
-            logs.append(msg)
-            log_to_console(msg)
-
-        except Exception as e:
-            err = f"{os.path.basename(path)} >> ERROR: {str(e)}"
-            errors.append(err)
-            logs.append(err)
-            log_to_console(err)
-
+    for i in range(1, len(paths) + 1):
         animate_progress(i)
-        root.update()
-
 
     save_log(logs, errors)
+
     if safe_mode.get():
         action = "sent to bin"
     else:
         action = "Deleted"
-
 
     if len(names) == 1:
         if files == 1:
@@ -2077,114 +1871,125 @@ def delete_files(all=False):
     else:
         msg = format_items(files, folders, None, action.capitalize())
 
+    if result.failed:
+        for msg_err in result.errors:
+            show_error(msg_err)
+
     show_status(msg)
     root.after(5000, reset_progress)
 
-
     root.after(50, search_files)
     root.after(50, load_bin)
+
+
 def load_meta():
-    with open(META_FILE, "r") as f:
-        return json.load(f)
+    meta, err = _service_load_meta(META_FILE)
+    if err:
+        log_to_console(f"Meta load error: {err}")
+        return {}
+    return meta if isinstance(meta, dict) else {}
+
 
 def save_meta(meta):
-    with open(META_FILE, "w") as f:
-        json.dump(meta, f, indent=4)
+    err = _service_save_meta(META_FILE, meta)
+    if err:
+        raise RuntimeError(err)
 
-def copy_paths():
-    selected = files_tree.selection()
-
-    if not selected:
-        return
-
-    paths = []
-
-    for item in selected:
-        values = files_tree.item(item, "values")
-        if not values:
-            continue
-
-        path = values[0]
-        paths.append(f'"{path}"')
-
-    result = "\n".join(paths)
-
-    root.clipboard_clear()
-    root.clipboard_append(result)
-
-import pythoncom
-import win32com.client
 
 def delete_from_bin():
     selected = delete_bin_tree.selection()
-    meta = load_meta()
 
+    file_ids = []
     for item in selected:
-        file_id = delete_bin_tree.item(item, "values")[0]
-        data = meta.get(file_id)
+        values = delete_bin_tree.item(item, "values")
+        if values:
+            file_ids.append(values[0])
 
-        path = os.path.join(BIN_DIR, file_id)
-        name = data["name"] if data else file_id
+    if not file_ids:
+        return
 
-        try:
-            if os.path.exists(path):
-                os.remove(path)
+    result = _service_delete_from_bin(file_ids, bin_dir=BIN_DIR, meta_path=META_FILE)
+    for message in result.logs:
+        log_to_console(message)
 
-                msg = f"[BIN DEL] {name} permanently deleted"
-                log_to_console(msg)
+    if result.errors:
+        for message in result.errors:
+            log_to_console(message)
 
-        except Exception as e:
-            err = f"{name} >> ERROR: {str(e)}"
-            log_to_console(err)
+    for item in list(selected):
+        file_id = delete_bin_tree.item(item, "values")
+        if not file_id:
             continue
+        if file_id[0] in result.removed_ids:
+            delete_bin_tree.delete(item)
 
-        meta.pop(file_id, None)
-
-    save_meta(meta)
     load_bin()
 
 
-import os
-import shutil
+def restore_file(file_id=None):
+    selected = list(delete_bin_tree.selection()) if file_id is None else [file_id]
 
-def restore_file():
-    selected = delete_bin_tree.selection()
-    meta = load_meta()
+    ids = []
 
-    for item in selected:
-        file_id = delete_bin_tree.item(item, "values")[0]
-        data = meta.get(file_id)
+    if selected and file_id is None:
+        for item in selected:
+            item_id = delete_bin_tree.item(item, "values")
+            if item_id:
+                ids.append(item_id[0])
+    elif file_id is not None:
+        if isinstance(file_id, (list, tuple, set)):
+            ids = [str(i) for i in file_id]
+        elif isinstance(file_id, str):
+            ids = [file_id]
+        else:
+            return None
 
-        if not data:
-            continue
+    if not ids:
+        return None
 
-        src = os.path.join(BIN_DIR, file_id)
-        dst = data["original_path"]
+    result = _service_restore_items(ids, bin_dir=BIN_DIR, meta_path=META_FILE)
 
-        try:
-            shutil.move(src, dst)
-        except Exception as e:
-            print("restore error:", e)
-            continue
+    for message in result.logs:
+        log_to_console(message)
 
-        meta.pop(file_id)
+    if result.errors:
+        for message in result.errors:
+            log_to_console(message)
 
-    files = len(selected)
-    msg = f"Restored {files} file{'s' if files != 1 else ''}"
-    show_status(msg)
+    if result.restored_ids:
+        files = len(result.restored_ids)
+        show_status(f"Restored {files} file{'s' if files != 1 else ''}")
 
+    for item in delete_bin_tree.get_children():
+        values = delete_bin_tree.item(item, "values")
+        if values and values[0] in result.restored_ids:
+            delete_bin_tree.delete(item)
 
-    save_meta(meta)
     load_bin()
     search_files()
 
-def start_console_log(title, count):
-    log_to_console(f"---{title} ({count})---")
-def set_operation_status(action, logs, errors):
-    done = len(logs) - len(errors)
-    total = len(logs)
+    return result
 
-    set_status(f"{action}! Done: {done} | Errors: {len(errors)} | Total: {total} items")
+
+def restore_selected_file():
+    selected = delete_bin_tree.selection()
+    file_ids = []
+
+    for item in selected:
+        values = delete_bin_tree.item(item, "values")
+        if values:
+            file_ids.append(values[0])
+
+    if file_ids:
+        restore_file(file_ids)
+
+
+def restore_selected_from_item(item):
+    values = delete_bin_tree.item(item, "values")
+    if not values:
+        return
+
+    restore_file(values[0])
 
 
 def undo_delete(event=None):
@@ -2193,24 +1998,26 @@ def undo_delete(event=None):
 
     item = deleted_stack.pop()
 
-    name = item["name"]
-    folder = item["folder"]
+    name = item.get("name") if isinstance(item, dict) else None
+    folder = item.get("folder") if isinstance(item, dict) else None
 
-    recycle_bin = Path(os.environ["USERPROFILE"]) / "$Recycle.Bin"
+    if not name or not folder:
+        show_error("Nothing to restore")
+        return
 
-    for root, dirs, files in os.walk(recycle_bin):
-        if name in files:
-            src = os.path.join(root, name)
-            dst = os.path.join(folder, name)
+    result = _service_restore_from_recycle_bin(name, folder)
 
-            try:
-                shutil.move(src, dst)
-                set_success(f"Restored: {name}")
-            except Exception as e:
-                show_error(str(e))
-            return
+    for msg in result.logs:
+        log_to_console(msg)
 
-    show_error("File not found in recycle bin")
+    if result.errors:
+        for msg in result.errors:
+            show_error(msg)
+        return
+
+    if result.restored:
+        set_success(f"Restored: {name}")
+
 
 def create_files():
     folder = dest_entry.get().strip()
@@ -2305,6 +2112,7 @@ def adjust_tree_column_full(tree):
         check(item)
 
     tree.column("#0", width=max_width)
+
 def show_create_preview():
 
     preview = tk.Toplevel(root)
@@ -2409,12 +2217,6 @@ def show_bin_menu(event):
     menu.post(event.x_root, event.y_root)
 
 
-def restore_selected_from_item(item):
-    filename = delete_bin_tree.item(item, "text")
-
-    restore_file(filename)
-
-    delete_bin_tree.delete(item)
 def normalize_path(p):
     return os.path.normcase(os.path.normpath(p))
 
@@ -2443,66 +2245,9 @@ def show_create():
     main_frame.pack(fill="both", expand=True)
     create_frame.pack(fill="both", expand=True)
 def delete_file_key_real(event=None):
-    selected = delete_tree.selection()
+    """Delete selected items from the delete-tree via service layer."""
 
-    if not selected:
-        show_error("Nothing to delete")
-        return
-
-    for item in selected:
-        values = delete_tree.item(item, "values")
-
-        if not values:
-            continue
-
-        path = values[0]
-
-        try:
-            if os.path.isfile(path):
-                os.remove(path)
-            elif os.path.isdir(path):
-                shutil.rmtree(path)
-
-            delete_tree.delete(item)
-
-        except Exception as e:
-            show_error(str(e))
-def sanitize_filename(name):
-    forbidden = r'<>:"/\\|?*'
-    for char in forbidden:
-        name = name.replace(char, "_")
-    return name
-def parse_count_input(text):
-    text = text.strip()
-
-    if not text:
-        return [1]
-
-    result = []
-
-    parts = text.split(",")
-
-    for part in parts:
-        part = part.strip()
-
-        if ":" in part:
-            try:
-                start, end = map(int, part.split(":"))
-                result.extend(range(start, end + 1))
-            except:
-                continue
-
-        else:
-            try:
-                result.append(int(part))
-            except:
-                continue
-
-    if len(result) == 1 and ":" not in text and "," not in text:
-        n = result[0]
-        return list(range(1, n + 1))
-
-    return result
+    return delete_files()
 def generate_numbers():
     prefix = get_prefix_value()
 
@@ -2529,26 +2274,6 @@ def format_date():
 
     dt = None
 
-    if custom:
-        try:
-            if fmt == "DMY":
-                dt = datetime.strptime(custom, "%d.%m.%Y")
-            elif fmt == "MDY":
-                dt = datetime.strptime(custom, "%m/%d/%Y")
-            elif fmt == "YMD":
-                dt = datetime.strptime(custom, "%Y-%m-%d")
-        except:
-            dt = None
-
-    if not dt:
-        dt = datetime.now()
-
-    if fmt == "DMY":
-        return dt.strftime("%d.%m.%Y")
-    elif fmt == "MDY":
-        return dt.strftime("%m/%d/%Y")
-    else:
-        return dt.strftime("%Y-%m-%d")
 def update_date_placeholder():
     fmt = date_format_var.get()
 
@@ -2565,22 +2290,13 @@ def update_date_placeholder():
 
     add_placeholder(date_entry, ph)
 def scan_files(base_path, max_depth):
-    result = []
+    result, scan_errors = _service_scan_files(base_path, max_depth)
 
-    base_path = os.path.normpath(base_path)
-    base_depth = base_path.count(os.sep)
-
-    for root, dirs, files in os.walk(base_path):
-        current_depth = root.count(os.sep) - base_depth
-
-        if current_depth >= max_depth:
-            dirs[:] = []
-
-        for file in files:
-            full_path = os.path.join(root, file)
-            result.append(full_path)
+    for err in scan_errors:
+        log_to_console(err)
 
     return result
+
 def search_files(event=None):
     folder = delete_dest_entry.get().strip()
     keyword = get_entry_value(delete_keyword_entry)
@@ -2599,67 +2315,63 @@ def search_files(event=None):
         except:
             max_depth = 1
 
-        base_depth = folder.count(os.sep)
         folders_map = {folder: ""}
 
-        for root_dir, dirs, files in os.walk(folder):
-            current_depth = root_dir.count(os.sep) - base_depth
+        files = scan_files(folder, max_depth)
 
-            if current_depth >= max_depth:
-                dirs[:] = []
+        for full_path in sorted(files, key=natural_sort_key):
+            file_name = os.path.basename(full_path)
+            root_dir = os.path.dirname(full_path)
 
-       
+            if keyword and keyword.lower() not in file_name.lower():
+                continue
+
+            if ext and ext != ".":
+                if not file_name.lower().endswith(ext.lower()):
+                    continue
+
             if root_dir not in folders_map:
                 rel_path = os.path.relpath(root_dir, folder)
-                parts = rel_path.split(os.sep)
 
-                parent = ""
-                current_path = folder
+                if rel_path in (".", ""):
+                    folders_map[root_dir] = ""
+                else:
+                    parts = rel_path.split(os.sep)
 
-                for part in parts:
-                    current_path = os.path.join(current_path, part)
+                    parent = ""
+                    current_path = folder
 
-                    if current_path not in folders_map:
-                        node = delete_tree.insert(
-                            parent,
-                            "end",
-                            text=part,
-                            open=True
-                        )
-                        folders_map[current_path] = node
+                    for part in parts:
+                        current_path = os.path.join(current_path, part)
 
-                    parent = folders_map[current_path]
+                        if current_path not in folders_map:
+                            node = delete_tree.insert(
+                                parent,
+                                "end",
+                                text=part,
+                                open=True
+                            )
+                            folders_map[current_path] = node
+
+                        parent = folders_map[current_path]
 
             parent_id = folders_map.get(root_dir, "")
 
-          
-            for file in sorted(files, key=natural_sort_key):
+            icon = get_file_icon(full_path)
 
-                if keyword and keyword.lower() not in file.lower():
-                    continue
+            delete_tree.insert(
+                parent_id,
+                "end",
+                text=file_name,
+                values=(full_path,),
+                image=icon if icon else "",
+                tags=("delete",)
+            )
 
-                if ext and ext != ".":
-                    if not file.lower().endswith(ext.lower()):
-                        continue
+            if icon:
+                icons_cache.append(icon)
 
-                full_path = os.path.join(root_dir, file)
-
-           
-                icon = get_file_icon(full_path)
-
-                delete_tree.insert(
-                    parent_id,
-                    "end",
-                    text=file,
-                    values=(full_path,),
-                    image=icon if icon else "",
-                    tags=("delete",)
-                )
-
-                if icon:
-                    icons_cache.append(icon)
-
-                delete_files_list.append(full_path)
+            delete_files_list.append(full_path)
 
     except Exception as e:
         print("search error:", e)
@@ -2668,22 +2380,9 @@ def search_files(event=None):
     adjust_tree_column_full(delete_tree)
     update_delete_scroll()
 
+
 def refresh_delete_tree():
-    folder = delete_dest_entry.get().strip()
-
-    if not folder or not os.path.exists(folder):
-        return
-
-    delete_tree.delete(*delete_tree.get_children())
-
-    try:
-        max_depth = int(deep_entry.get())
-    except:
-        max_depth = 1
-
-    insert_folder(delete_tree, "", folder, 1, max_depth)
-
-
+    search_files()
 def save_log(logs, errors, action="Process"):
     from datetime import datetime
     import os
@@ -2764,22 +2463,6 @@ def add_placeholder(entry, placeholder):
 
     show_placeholder()
 
-def on_click_toggle(event):
-    tree = event.widget
-    item = tree.identify_row(event.y)
-
-    if not item:
-        return
-
-    selected = tree.selection()
-
-    if item in selected:
-        tree.selection_remove(item)
-    else:
-        if not (event.state & 0x4):
-            tree.selection_set(item)
-        else:
-            tree.selection_add(item)
 
 def update_preview():
     
@@ -2830,11 +2513,6 @@ def get_entry_value(entry):
         return ""
 
     return val
-def natural_sort_key(s):
-    return [
-        int(text) if text.isdigit() else text.lower()
-        for text in re.split(r'(\d+)', s)
-    ]
 def update_create_ui():
     prefix = get_entry_value(prefix_entry)
 
@@ -4075,7 +3753,6 @@ safe_check.config(command=on_safe_toggle)
 
 delete_keyword_entry.bind("<KeyRelease>", search_files)
 delete_ext_entry.bind("<KeyRelease>", search_files)
-delete_dest_entry.bind("<KeyRelease>", search_files)
 deep_entry.bind("<FocusOut>", search_files)
 
 delete_exec_btn = ttk.Button(
